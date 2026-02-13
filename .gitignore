@@ -47,6 +47,7 @@ app.*.map.json
 # Firebase
 firebase-debug.log
 firebase-debug.*.log
+android/app/google-services.json
 
 # Node modules (Cloud Functions)
 functions/node_modules/
