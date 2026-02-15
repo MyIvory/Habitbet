@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -16,23 +17,27 @@ class ChallengeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final dateFormat = DateFormat('MMM d');
+    final dateFormat =
+        DateFormat('MMM d', context.locale.toLanguageTag());
 
     Color statusColor;
     String statusText;
     switch (challenge.status) {
+      case ChallengeStatus.pending:
+        statusColor = Colors.orange;
+        statusText = 'status_pending'.tr();
       case ChallengeStatus.active:
         statusColor = colorScheme.primary;
-        statusText = 'Active';
+        statusText = 'status_active'.tr();
       case ChallengeStatus.completed:
         statusColor = Colors.green;
-        statusText = 'Completed';
+        statusText = 'status_completed'.tr();
       case ChallengeStatus.failed:
         statusColor = colorScheme.error;
-        statusText = 'Failed';
+        statusText = 'status_failed'.tr();
       case ChallengeStatus.cancelled:
         statusColor = colorScheme.outline;
-        statusText = 'Cancelled';
+        statusText = 'status_cancelled'.tr();
     }
 
     return Card(
@@ -77,7 +82,7 @@ class ChallengeCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                '\$${challenge.stakeAmountDollars.toStringAsFixed(0)} at stake',
+                'at_stake'.tr(args: [challenge.stakeAmountDollars.toStringAsFixed(0)]),
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       color: colorScheme.secondary,
                       fontWeight: FontWeight.w600,
@@ -114,7 +119,7 @@ class ChallengeCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${challenge.completedDays} days completed',
+                  'days_completed'.tr(args: ['${challenge.completedDays}']),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: colorScheme.outline,
                       ),

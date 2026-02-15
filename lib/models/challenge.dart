@@ -1,4 +1,8 @@
-enum ChallengeStatus { active, completed, failed, cancelled }
+enum ChallengeStatus { pending, active, completed, failed, cancelled }
+
+enum ArbiterStatus { pending, accepted, declined }
+
+enum PaymentProofStatus { none, pending, submitted, approved, rejected }
 
 class Challenge {
   final String id;
@@ -7,6 +11,7 @@ class Challenge {
   final String arbiterId;
   final String arbiterName;
   final String arbiterEmail;
+  final ArbiterStatus arbiterStatus;
   final String title;
   final String description;
   final int stakeAmountCents;
@@ -17,7 +22,14 @@ class Challenge {
   final DateTime startDate;
   final DateTime endDate;
   final ChallengeStatus status;
-  final String? stripePaymentIntentId;
+  final PaymentProofStatus paymentProofStatus;
+  final String? paymentProofImageUrl;
+  final String? paymentProofNote;
+  final DateTime? paymentProofSubmittedAt;
+  final DateTime? paymentProofReviewedAt;
+  final String? paymentProofRejectionReason;
+  final int? arbiterRating;
+  final String? arbiterFeedback;
   final int completedDays;
   final int missedDays;
   final DateTime createdAt;
@@ -29,6 +41,7 @@ class Challenge {
     required this.arbiterId,
     required this.arbiterName,
     required this.arbiterEmail,
+    this.arbiterStatus = ArbiterStatus.pending,
     required this.title,
     required this.description,
     required this.stakeAmountCents,
@@ -39,7 +52,14 @@ class Challenge {
     required this.startDate,
     required this.endDate,
     required this.status,
-    this.stripePaymentIntentId,
+    this.paymentProofStatus = PaymentProofStatus.none,
+    this.paymentProofImageUrl,
+    this.paymentProofNote,
+    this.paymentProofSubmittedAt,
+    this.paymentProofReviewedAt,
+    this.paymentProofRejectionReason,
+    this.arbiterRating,
+    this.arbiterFeedback,
     this.completedDays = 0,
     this.missedDays = 0,
     required this.createdAt,
@@ -56,6 +76,20 @@ class Challenge {
   bool get isActive => status == ChallengeStatus.active;
 
   factory Challenge.fromJson(Map<String, dynamic> json) {
+    final status = ChallengeStatus.values.firstWhere(
+      (e) => e.name == json['status'],
+      orElse: () => ChallengeStatus.active,
+    );
+    final paymentProofRaw = json['paymentProofStatus'] as String?;
+    final paymentProofStatus = paymentProofRaw == null
+        ? (status == ChallengeStatus.failed
+            ? PaymentProofStatus.pending
+            : PaymentProofStatus.none)
+        : PaymentProofStatus.values.firstWhere(
+            (e) => e.name == paymentProofRaw,
+            orElse: () => PaymentProofStatus.none,
+          );
+
     return Challenge(
       id: json['id'] as String,
       creatorId: json['creatorId'] as String,
@@ -63,6 +97,10 @@ class Challenge {
       arbiterId: json['arbiterId'] as String,
       arbiterName: json['arbiterName'] as String? ?? '',
       arbiterEmail: json['arbiterEmail'] as String? ?? '',
+      arbiterStatus: ArbiterStatus.values.firstWhere(
+        (e) => e.name == json['arbiterStatus'],
+        orElse: () => ArbiterStatus.pending,
+      ),
       title: json['title'] as String,
       description: json['description'] as String? ?? '',
       stakeAmountCents: json['stakeAmountCents'] as int,
@@ -72,11 +110,20 @@ class Challenge {
       requiredDaysPerWeek: json['requiredDaysPerWeek'] as int? ?? 7,
       startDate: DateTime.parse(json['startDate'] as String),
       endDate: DateTime.parse(json['endDate'] as String),
-      status: ChallengeStatus.values.firstWhere(
-        (e) => e.name == json['status'],
-        orElse: () => ChallengeStatus.active,
-      ),
-      stripePaymentIntentId: json['stripePaymentIntentId'] as String?,
+      status: status,
+      paymentProofStatus: paymentProofStatus,
+      paymentProofImageUrl: json['paymentProofImageUrl'] as String?,
+      paymentProofNote: json['paymentProofNote'] as String?,
+      paymentProofSubmittedAt: json['paymentProofSubmittedAt'] != null
+          ? DateTime.parse(json['paymentProofSubmittedAt'] as String)
+          : null,
+      paymentProofReviewedAt: json['paymentProofReviewedAt'] != null
+          ? DateTime.parse(json['paymentProofReviewedAt'] as String)
+          : null,
+      paymentProofRejectionReason:
+          json['paymentProofRejectionReason'] as String?,
+      arbiterRating: json['arbiterRating'] as int?,
+      arbiterFeedback: json['arbiterFeedback'] as String?,
       completedDays: json['completedDays'] as int? ?? 0,
       missedDays: json['missedDays'] as int? ?? 0,
       createdAt: DateTime.parse(json['createdAt'] as String),
@@ -91,6 +138,7 @@ class Challenge {
       'arbiterId': arbiterId,
       'arbiterName': arbiterName,
       'arbiterEmail': arbiterEmail,
+      'arbiterStatus': arbiterStatus.name,
       'title': title,
       'description': description,
       'stakeAmountCents': stakeAmountCents,
@@ -101,7 +149,14 @@ class Challenge {
       'startDate': startDate.toIso8601String(),
       'endDate': endDate.toIso8601String(),
       'status': status.name,
-      'stripePaymentIntentId': stripePaymentIntentId,
+      'paymentProofStatus': paymentProofStatus.name,
+      'paymentProofImageUrl': paymentProofImageUrl,
+      'paymentProofNote': paymentProofNote,
+      'paymentProofSubmittedAt': paymentProofSubmittedAt?.toIso8601String(),
+      'paymentProofReviewedAt': paymentProofReviewedAt?.toIso8601String(),
+      'paymentProofRejectionReason': paymentProofRejectionReason,
+      'arbiterRating': arbiterRating,
+      'arbiterFeedback': arbiterFeedback,
       'completedDays': completedDays,
       'missedDays': missedDays,
       'createdAt': createdAt.toIso8601String(),
@@ -115,6 +170,7 @@ class Challenge {
     String? arbiterId,
     String? arbiterName,
     String? arbiterEmail,
+    ArbiterStatus? arbiterStatus,
     String? title,
     String? description,
     int? stakeAmountCents,
@@ -125,7 +181,14 @@ class Challenge {
     DateTime? startDate,
     DateTime? endDate,
     ChallengeStatus? status,
-    String? stripePaymentIntentId,
+    PaymentProofStatus? paymentProofStatus,
+    String? paymentProofImageUrl,
+    String? paymentProofNote,
+    DateTime? paymentProofSubmittedAt,
+    DateTime? paymentProofReviewedAt,
+    String? paymentProofRejectionReason,
+    int? arbiterRating,
+    String? arbiterFeedback,
     int? completedDays,
     int? missedDays,
     DateTime? createdAt,
@@ -137,6 +200,7 @@ class Challenge {
       arbiterId: arbiterId ?? this.arbiterId,
       arbiterName: arbiterName ?? this.arbiterName,
       arbiterEmail: arbiterEmail ?? this.arbiterEmail,
+      arbiterStatus: arbiterStatus ?? this.arbiterStatus,
       title: title ?? this.title,
       description: description ?? this.description,
       stakeAmountCents: stakeAmountCents ?? this.stakeAmountCents,
@@ -147,7 +211,17 @@ class Challenge {
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
       status: status ?? this.status,
-      stripePaymentIntentId: stripePaymentIntentId ?? this.stripePaymentIntentId,
+      paymentProofStatus: paymentProofStatus ?? this.paymentProofStatus,
+      paymentProofImageUrl: paymentProofImageUrl ?? this.paymentProofImageUrl,
+      paymentProofNote: paymentProofNote ?? this.paymentProofNote,
+      paymentProofSubmittedAt:
+          paymentProofSubmittedAt ?? this.paymentProofSubmittedAt,
+      paymentProofReviewedAt:
+          paymentProofReviewedAt ?? this.paymentProofReviewedAt,
+      paymentProofRejectionReason:
+          paymentProofRejectionReason ?? this.paymentProofRejectionReason,
+      arbiterRating: arbiterRating ?? this.arbiterRating,
+      arbiterFeedback: arbiterFeedback ?? this.arbiterFeedback,
       completedDays: completedDays ?? this.completedDays,
       missedDays: missedDays ?? this.missedDays,
       createdAt: createdAt ?? this.createdAt,

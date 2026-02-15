@@ -1,9 +1,12 @@
 import 'dart:io';
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../config/constants.dart';
 import '../../config/routes.dart';
 import '../../models/app_user.dart';
 import '../../providers/auth_provider.dart';
@@ -56,7 +59,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Sign in failed: $e')),
+          SnackBar(content: Text('sign_in_failed'.tr(args: ['$e']))),
         );
       }
     } finally {
@@ -93,21 +96,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Sign in to start your challenge',
+                  'sign_in_subtitle'.tr(),
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: colorScheme.onSurfaceVariant,
                       ),
                 ),
                 const Spacer(),
                 AppButton(
-                  label: 'Continue with Google',
+                  label: 'continue_with_google'.tr(),
                   icon: Icons.g_mobiledata,
                   onPressed: () => _signIn(),
                 ),
                 const SizedBox(height: 12),
                 if (Platform.isIOS) ...[
                   AppButton(
-                    label: 'Continue with Apple',
+                    label: 'continue_with_apple'.tr(),
                     icon: Icons.apple,
                     onPressed: () => _signIn(apple: true),
                     isOutlined: true,
@@ -116,16 +119,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ],
                 const SizedBox(height: 24),
                 Text(
-                  'By continuing, you agree to our',
+                  'by_continuing'.tr(),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     TextButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        launchUrl(Uri.parse(AppConstants.termsUrl));
+                      },
                       child: Text(
-                        'Terms of Service',
+                        'terms_of_service'.tr(),
                         style: TextStyle(
                           fontSize: 12,
                           color: colorScheme.primary,
@@ -133,13 +138,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                     ),
                     Text(
-                      ' and ',
+                      'and'.tr(),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     TextButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        launchUrl(Uri.parse(AppConstants.privacyPolicyUrl));
+                      },
                       child: Text(
-                        'Privacy Policy',
+                        'privacy_policy'.tr(),
                         style: TextStyle(
                           fontSize: 12,
                           color: colorScheme.primary,

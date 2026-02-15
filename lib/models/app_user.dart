@@ -8,7 +8,11 @@ class AppUser {
   final int challengesFailed;
   final int totalStaked;
   final int totalLost;
+  final int ratingTotal;
+  final int ratingCount;
   final String? fcmToken;
+  final bool notificationsEnabled;
+  final String locale;
   final DateTime createdAt;
 
   const AppUser({
@@ -21,9 +25,16 @@ class AppUser {
     this.challengesFailed = 0,
     this.totalStaked = 0,
     this.totalLost = 0,
+    this.ratingTotal = 0,
+    this.ratingCount = 0,
     this.fcmToken,
+    this.notificationsEnabled = true,
+    this.locale = 'en',
     required this.createdAt,
   });
+
+  double get ratingAverage =>
+      ratingCount == 0 ? 0 : ratingTotal / ratingCount;
 
   factory AppUser.fromJson(Map<String, dynamic> json) {
     return AppUser(
@@ -36,7 +47,11 @@ class AppUser {
       challengesFailed: json['challengesFailed'] as int? ?? 0,
       totalStaked: json['totalStaked'] as int? ?? 0,
       totalLost: json['totalLost'] as int? ?? 0,
+      ratingTotal: json['ratingTotal'] as int? ?? 0,
+      ratingCount: json['ratingCount'] as int? ?? 0,
       fcmToken: json['fcmToken'] as String?,
+      notificationsEnabled: json['notificationsEnabled'] as bool? ?? true,
+      locale: json['locale'] as String? ?? 'en',
       createdAt: DateTime.parse(json['createdAt'] as String),
     );
   }
@@ -52,7 +67,11 @@ class AppUser {
       'challengesFailed': challengesFailed,
       'totalStaked': totalStaked,
       'totalLost': totalLost,
+      'ratingTotal': ratingTotal,
+      'ratingCount': ratingCount,
       'fcmToken': fcmToken,
+      'notificationsEnabled': notificationsEnabled,
+      'locale': locale,
       'createdAt': createdAt.toIso8601String(),
     };
   }
@@ -67,7 +86,11 @@ class AppUser {
     int? challengesFailed,
     int? totalStaked,
     int? totalLost,
+    int? ratingTotal,
+    int? ratingCount,
     String? fcmToken,
+    bool? notificationsEnabled,
+    String? locale,
     DateTime? createdAt,
   }) {
     return AppUser(
@@ -80,7 +103,11 @@ class AppUser {
       challengesFailed: challengesFailed ?? this.challengesFailed,
       totalStaked: totalStaked ?? this.totalStaked,
       totalLost: totalLost ?? this.totalLost,
+      ratingTotal: ratingTotal ?? this.ratingTotal,
+      ratingCount: ratingCount ?? this.ratingCount,
       fcmToken: fcmToken ?? this.fcmToken,
+      notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
+      locale: locale ?? this.locale,
       createdAt: createdAt ?? this.createdAt,
     );
   }

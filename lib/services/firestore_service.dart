@@ -33,6 +33,15 @@ class FirestoreService {
     await _usersRef.doc(uid).update(data);
   }
 
+  Future<AppUser?> findUserByEmail(String email) async {
+    final snap = await _usersRef
+        .where('email', isEqualTo: email.trim().toLowerCase())
+        .limit(1)
+        .get();
+    if (snap.docs.isEmpty) return null;
+    return AppUser.fromJson(snap.docs.first.data());
+  }
+
   // ── Challenges ──
 
   CollectionReference<Map<String, dynamic>> get _challengesRef =>
@@ -71,6 +80,44 @@ class FirestoreService {
         .snapshots()
         .map((snap) =>
             snap.docs.map((d) => Challenge.fromJson(d.data())).toList());
+  }
+
+  Stream<List<Challenge>> pendingArbiterRequestsStream(String userId) {
+    return _challengesRef
+        .where('arbiterId', isEqualTo: userId)
+        .where('arbiterStatus', isEqualTo: 'pending')
+        .snapshots()
+        .map((snap) =>
+            snap.docs.map((d) => Challenge.fromJson(d.data())).toList());
+  }
+
+  Stream<List<Challenge>> acceptedArbitrationStream(String userId) {
+    return _challengesRef
+        .where('arbiterId', isEqualTo: userId)
+        .where('arbiterStatus', isEqualTo: 'accepted')
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snap) =>
+            snap.docs.map((d) => Challenge.fromJson(d.data())).toList());
+  }
+
+  Stream<List<AppUser>> previousArbitersStream(String userId) {
+    return _challengesRef
+        .where('creatorId', isEqualTo: userId)
+        .where('arbiterStatus', isEqualTo: 'accepted')
+        .snapshots()
+        .asyncMap((snap) async {
+      final arbiterIds = snap.docs
+          .map((d) => d.data()['arbiterId'] as String)
+          .where((id) => id.isNotEmpty)
+          .toSet();
+      final arbiters = <AppUser>[];
+      for (final id in arbiterIds) {
+        final user = await getUser(id);
+        if (user != null) arbiters.add(user);
+      }
+      return arbiters;
+    });
   }
 
   Future<void> updateChallenge(String id, Map<String, dynamic> data) async {

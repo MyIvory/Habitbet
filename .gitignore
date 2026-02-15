@@ -49,5 +49,10 @@ firebase-debug.log
 firebase-debug.*.log
 android/app/google-services.json
 
+# Signing
+android/key.properties
+android/*.jks
+android/*.keystore
+
 # Node modules (Cloud Functions)
 functions/node_modules/

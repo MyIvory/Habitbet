@@ -1,4 +1,4 @@
-package com.example.habitbet
+package app.habitbet
 
 import io.flutter.embedding.android.FlutterActivity
 

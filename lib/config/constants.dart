@@ -4,17 +4,16 @@ class AppConstants {
   // Firebase — configure in firebase console
   static const firebaseProjectId = 'habitbet-app-2026-f6e4c';
 
-  // Stripe — configure in Stripe dashboard
-  static const stripePublishableKey = 'pk_test_YOUR_STRIPE_PUBLISHABLE_KEY';
-  static const stripeMerchantId = 'merchant.com.habitbet';
-
-  // Minimum / maximum stake amounts (in USD cents)
+  // Minimum / maximum pledge amounts (in USD cents)
   static const minStakeCents = 500; // $5
   static const maxStakeCents = 50000; // $500
 
   // Challenge duration limits
   static const minChallengeDays = 7;
   static const maxChallengeDays = 90;
+
+  // Maximum proof submission attempts per day
+  static const maxProofAttempts = 3;
 
   // Proof submission deadline (hours from midnight)
   static const proofDeadlineHour = 23;
@@ -26,10 +25,9 @@ class AppConstants {
 
   // Charities list
   static const charities = [
-    Charity(id: 'red_cross', name: 'Red Cross', logoUrl: ''),
-    Charity(id: 'unicef', name: 'UNICEF', logoUrl: ''),
-    Charity(id: 'wwf', name: 'WWF', logoUrl: ''),
-    Charity(id: 'doctors_without_borders', name: 'Doctors Without Borders', logoUrl: ''),
+    Charity(id: 'rusoriz', name: 'charity_rusoriz', logoUrl: ''),
+    Charity(id: 'rl', name: 'charity_rl', logoUrl: ''),
+    Charity(id: 'arbiter', name: 'charity_arbiter', logoUrl: ''),
   ];
 
   // Privacy policy
@@ -42,9 +40,5 @@ class Charity {
   final String name;
   final String logoUrl;
 
-  const Charity({
-    required this.id,
-    required this.name,
-    required this.logoUrl,
-  });
+  const Charity({required this.id, required this.name, required this.logoUrl});
 }

@@ -1,8 +1,10 @@
 import 'dart:io';
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../config/constants.dart';
 import '../../../models/day_record.dart';
 import '../../../services/storage_service.dart';
 import '../../../widgets/app_button.dart';
@@ -43,7 +45,7 @@ class _ProofBottomSheetState extends State<ProofBottomSheet> {
   Future<void> _submit() async {
     if (_selectedImage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please take or select a photo')),
+        SnackBar(content: Text('please_select_photo'.tr())),
       );
       return;
     }
@@ -62,7 +64,7 @@ class _ProofBottomSheetState extends State<ProofBottomSheet> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Upload failed: $e')),
+          SnackBar(content: Text('upload_failed'.tr(args: ['$e']))),
         );
       }
     } finally {
@@ -84,12 +86,34 @@ class _ProofBottomSheetState extends State<ProofBottomSheet> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Submit Proof',
+            'submit_proof'.tr(),
             style: Theme.of(context)
                 .textTheme
                 .titleLarge
                 ?.copyWith(fontWeight: FontWeight.bold),
           ),
+          if (widget.record.proofAttempts > 0) ...[
+            const SizedBox(height: 4),
+            Text(
+              'proof_attempt'.tr(args: [
+                '${widget.record.proofAttempts + 1}',
+                '${AppConstants.maxProofAttempts}',
+              ]),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.orange,
+                  ),
+            ),
+            if (widget.record.rejectionReason != null &&
+                widget.record.rejectionReason!.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                'payment_proof_rejected_reason'.tr(args: [widget.record.rejectionReason!]),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+              ),
+            ],
+          ],
           const SizedBox(height: 16),
           if (_selectedImage != null)
             ClipRRect(
@@ -119,7 +143,7 @@ class _ProofBottomSheetState extends State<ProofBottomSheet> {
                 child: OutlinedButton.icon(
                   onPressed: () => _pickImage(ImageSource.camera),
                   icon: const Icon(Icons.camera_alt),
-                  label: const Text('Camera'),
+                  label: Text('camera'.tr()),
                 ),
               ),
               const SizedBox(width: 8),
@@ -127,7 +151,7 @@ class _ProofBottomSheetState extends State<ProofBottomSheet> {
                 child: OutlinedButton.icon(
                   onPressed: () => _pickImage(ImageSource.gallery),
                   icon: const Icon(Icons.photo_library),
-                  label: const Text('Gallery'),
+                  label: Text('gallery'.tr()),
                 ),
               ),
             ],
@@ -135,15 +159,15 @@ class _ProofBottomSheetState extends State<ProofBottomSheet> {
           const SizedBox(height: 12),
           TextField(
             controller: _noteController,
-            decoration: const InputDecoration(
-              labelText: 'Note (optional)',
-              hintText: 'Any details about today\'s progress...',
+            decoration: InputDecoration(
+              labelText: 'note_label'.tr(),
+              hintText: 'note_hint'.tr(),
             ),
             maxLines: 2,
           ),
           const SizedBox(height: 16),
           AppButton(
-            label: 'Submit Proof',
+            label: 'submit_proof'.tr(),
             onPressed: _submit,
             isLoading: _isUploading,
           ),

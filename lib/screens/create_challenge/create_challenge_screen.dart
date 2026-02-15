@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,9 +6,11 @@ import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../config/constants.dart';
+import '../../models/app_user.dart';
 import '../../models/challenge.dart';
 import '../../models/day_record.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/challenge_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_text_field.dart';
@@ -27,12 +30,15 @@ class _CreateChallengeScreenState extends ConsumerState<CreateChallengeScreen> {
   final _descriptionController = TextEditingController();
   final _stakeController = TextEditingController();
   final _arbiterEmailController = TextEditingController();
-  final _arbiterNameController = TextEditingController();
 
   int _durationDays = 21;
   int _requiredDaysPerWeek = 7;
   String _selectedCharityId = AppConstants.charities.first.id;
   bool _isLoading = false;
+
+  AppUser? _selectedArbiter;
+  bool _isSearchingArbiter = false;
+  String? _arbiterSearchError;
 
   @override
   void dispose() {
@@ -40,12 +46,63 @@ class _CreateChallengeScreenState extends ConsumerState<CreateChallengeScreen> {
     _descriptionController.dispose();
     _stakeController.dispose();
     _arbiterEmailController.dispose();
-    _arbiterNameController.dispose();
     super.dispose();
+  }
+
+  Future<void> _searchArbiterByEmail() async {
+    final email = _arbiterEmailController.text.trim();
+    if (email.isEmpty || !email.contains('@')) return;
+
+    final firebaseUser = ref.read(authStateProvider).value;
+    if (firebaseUser != null && email.toLowerCase() == firebaseUser.email?.toLowerCase()) {
+      setState(() {
+        _arbiterSearchError = 'cannot_be_own_arbiter'.tr();
+        _selectedArbiter = null;
+      });
+      return;
+    }
+
+    setState(() {
+      _isSearchingArbiter = true;
+      _arbiterSearchError = null;
+    });
+
+    try {
+      final firestoreService = ref.read(firestoreServiceProvider);
+      final user = await firestoreService.findUserByEmail(email);
+      if (mounted) {
+        setState(() {
+          _selectedArbiter = user;
+          _isSearchingArbiter = false;
+          _arbiterSearchError =
+              user == null ? 'no_user_found'.tr() : null;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isSearchingArbiter = false;
+          _arbiterSearchError = 'search_failed'.tr(args: ['$e']);
+        });
+      }
+    }
+  }
+
+  void _selectPreviousArbiter(AppUser arbiter) {
+    setState(() {
+      _selectedArbiter = arbiter;
+      _arbiterEmailController.text = arbiter.email;
+      _arbiterSearchError = null;
+    });
   }
 
   Future<void> _createChallenge() async {
     if (!_formKey.currentState!.validate()) return;
+
+    if (_selectedArbiter == null) {
+      setState(() => _arbiterSearchError = 'please_select_arbiter'.tr());
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -66,16 +123,14 @@ class _CreateChallengeScreenState extends ConsumerState<CreateChallengeScreen> {
       const uuid = Uuid();
       final challengeId = uuid.v4();
 
-      // Mock payment intent (Stripe disabled)
-      final paymentIntentId = 'pi_mock_$challengeId';
-
       final challenge = Challenge(
         id: challengeId,
         creatorId: firebaseUser.uid,
         creatorName: currentUser?.displayName ?? firebaseUser.displayName ?? '',
-        arbiterId: '', // Will be resolved when arbiter accepts
-        arbiterName: _arbiterNameController.text.trim(),
-        arbiterEmail: _arbiterEmailController.text.trim(),
+        arbiterId: _selectedArbiter!.uid,
+        arbiterName: _selectedArbiter!.displayName,
+        arbiterEmail: _selectedArbiter!.email,
+        arbiterStatus: ArbiterStatus.pending,
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
         stakeAmountCents: stakeAmount,
@@ -85,15 +140,13 @@ class _CreateChallengeScreenState extends ConsumerState<CreateChallengeScreen> {
         requiredDaysPerWeek: _requiredDaysPerWeek,
         startDate: startDate,
         endDate: endDate,
-        status: ChallengeStatus.active,
-        stripePaymentIntentId: paymentIntentId,
+        status: ChallengeStatus.pending,
         createdAt: now,
       );
 
       final firestoreService = ref.read(firestoreServiceProvider);
       await firestoreService.createChallenge(challenge);
 
-      // Create day records for the entire duration
       for (var i = 0; i < _durationDays; i++) {
         final date = startDate.add(Duration(days: i));
         final dayRecord = DayRecord(
@@ -106,14 +159,14 @@ class _CreateChallengeScreenState extends ConsumerState<CreateChallengeScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Challenge created!')),
+          SnackBar(content: Text('challenge_created'.tr())),
         );
         context.pop();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to create challenge: $e')),
+          SnackBar(content: Text('failed_to_create'.tr(args: ['$e']))),
         );
       }
     } finally {
@@ -123,11 +176,13 @@ class _CreateChallengeScreenState extends ConsumerState<CreateChallengeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final previousArbitersAsync = ref.watch(previousArbitersProvider);
+
     return LoadingOverlay(
       isLoading: _isLoading,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('New Challenge'),
+          title: Text('new_challenge'.tr()),
         ),
         body: Form(
           key: _formKey,
@@ -135,22 +190,22 @@ class _CreateChallengeScreenState extends ConsumerState<CreateChallengeScreen> {
             padding: const EdgeInsets.all(16),
             children: [
               AppTextField(
-                label: 'Challenge Title',
-                hint: 'e.g., Run every morning',
+                label: 'challenge_title_label'.tr(),
+                hint: 'challenge_title_hint'.tr(),
                 controller: _titleController,
                 validator: (v) =>
-                    v == null || v.trim().isEmpty ? 'Title is required' : null,
+                    v == null || v.trim().isEmpty ? 'title_required'.tr() : null,
               ),
               const SizedBox(height: 16),
               AppTextField(
-                label: 'Description',
-                hint: 'What exactly do you commit to?',
+                label: 'description_label'.tr(),
+                hint: 'description_hint'.tr(),
                 controller: _descriptionController,
                 maxLines: 3,
               ),
               const SizedBox(height: 16),
               AppTextField(
-                label: 'Stake Amount',
+                label: 'stake_amount_label'.tr(),
                 hint: '25.00',
                 controller: _stakeController,
                 prefixText: '\$ ',
@@ -160,21 +215,21 @@ class _CreateChallengeScreenState extends ConsumerState<CreateChallengeScreen> {
                   FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
                 ],
                 validator: (v) {
-                  if (v == null || v.isEmpty) return 'Stake is required';
+                  if (v == null || v.isEmpty) return 'stake_required'.tr();
                   final amount = double.tryParse(v);
-                  if (amount == null) return 'Invalid amount';
+                  if (amount == null) return 'invalid_amount'.tr();
                   if (amount < AppConstants.minStakeCents / 100) {
-                    return 'Minimum stake is \$${(AppConstants.minStakeCents / 100).toStringAsFixed(0)}';
+                    return 'min_stake'.tr(args: ['${(AppConstants.minStakeCents / 100).toStringAsFixed(0)}']);
                   }
                   if (amount > AppConstants.maxStakeCents / 100) {
-                    return 'Maximum stake is \$${(AppConstants.maxStakeCents / 100).toStringAsFixed(0)}';
+                    return 'max_stake'.tr(args: ['${(AppConstants.maxStakeCents / 100).toStringAsFixed(0)}']);
                   }
                   return null;
                 },
               ),
               const SizedBox(height: 24),
               Text(
-                'Duration: $_durationDays days',
+                'duration_days'.tr(args: ['$_durationDays']),
                 style: Theme.of(context).textTheme.titleSmall,
               ),
               Slider(
@@ -183,13 +238,13 @@ class _CreateChallengeScreenState extends ConsumerState<CreateChallengeScreen> {
                 max: AppConstants.maxChallengeDays.toDouble(),
                 divisions:
                     AppConstants.maxChallengeDays - AppConstants.minChallengeDays,
-                label: '$_durationDays days',
+                label: '$_durationDays',
                 onChanged: (v) =>
                     setState(() => _durationDays = v.round()),
               ),
               const SizedBox(height: 16),
               Text(
-                'Required days per week: $_requiredDaysPerWeek',
+                'required_days_per_week'.tr(args: ['$_requiredDaysPerWeek']),
                 style: Theme.of(context).textTheme.titleSmall,
               ),
               Slider(
@@ -197,13 +252,13 @@ class _CreateChallengeScreenState extends ConsumerState<CreateChallengeScreen> {
                 min: 1,
                 max: 7,
                 divisions: 6,
-                label: '$_requiredDaysPerWeek days/week',
+                label: '$_requiredDaysPerWeek',
                 onChanged: (v) =>
                     setState(() => _requiredDaysPerWeek = v.round()),
               ),
               const SizedBox(height: 24),
               Text(
-                'Charity (if you fail)',
+                'charity_label'.tr(),
                 style: Theme.of(context).textTheme.titleSmall,
               ),
               const SizedBox(height: 8),
@@ -215,7 +270,7 @@ class _CreateChallengeScreenState extends ConsumerState<CreateChallengeScreen> {
                 items: AppConstants.charities
                     .map((c) => DropdownMenuItem(
                           value: c.id,
-                          child: Text(c.name),
+                          child: Text(c.name.tr()),
                         ))
                     .toList(),
                 onChanged: (v) {
@@ -224,36 +279,135 @@ class _CreateChallengeScreenState extends ConsumerState<CreateChallengeScreen> {
               ),
               const SizedBox(height: 24),
               Text(
-                'Arbiter',
+                'arbiter_label'.tr(),
                 style: Theme.of(context).textTheme.titleSmall,
               ),
               const SizedBox(height: 8),
-              AppTextField(
-                label: 'Arbiter Name',
-                hint: 'Your friend\'s name',
-                controller: _arbiterNameController,
-                validator: (v) => v == null || v.trim().isEmpty
-                    ? 'Arbiter name is required'
-                    : null,
+
+              // Previous arbiters
+              previousArbitersAsync.when(
+                loading: () => const SizedBox.shrink(),
+                error: (_, __) => const SizedBox.shrink(),
+                data: (arbiters) {
+                  if (arbiters.isEmpty) return const SizedBox.shrink();
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'previous_arbiters'.tr(),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.outline,
+                            ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: arbiters.map((arbiter) {
+                          final isSelected =
+                              _selectedArbiter?.uid == arbiter.uid;
+                          return ActionChip(
+                            avatar: isSelected
+                                ? const Icon(Icons.check, size: 18)
+                                : const Icon(Icons.person, size: 18),
+                            label: Text(arbiter.displayName),
+                            backgroundColor: isSelected
+                                ? Theme.of(context)
+                                    .colorScheme
+                                    .primaryContainer
+                                : null,
+                            onPressed: () => _selectPreviousArbiter(arbiter),
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'or_search_by_email'.tr(),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.outline,
+                            ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                  );
+                },
               ),
-              const SizedBox(height: 12),
+
+              // Email search field
               AppTextField(
-                label: 'Arbiter Email',
-                hint: 'friend@email.com',
+                label: 'arbiter_email_label'.tr(),
+                hint: 'arbiter_email_hint'.tr(),
                 controller: _arbiterEmailController,
                 keyboardType: TextInputType.emailAddress,
+                suffixIcon: _isSearchingArbiter
+                    ? const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    : IconButton(
+                        icon: const Icon(Icons.search),
+                        onPressed: _searchArbiterByEmail,
+                      ),
                 validator: (v) {
+                  if (_selectedArbiter != null) return null;
                   if (v == null || v.trim().isEmpty) {
-                    return 'Arbiter email is required';
+                    return 'arbiter_email_required'.tr();
                   }
-                  if (!v.contains('@')) return 'Invalid email';
+                  if (!v.contains('@')) return 'invalid_email'.tr();
                   return null;
                 },
               ),
+
+              if (_arbiterSearchError != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  _arbiterSearchError!,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+
+              // Selected arbiter display
+              if (_selectedArbiter != null) ...[
+                const SizedBox(height: 12),
+                Card(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundImage: _selectedArbiter!.photoUrl.isNotEmpty
+                          ? NetworkImage(_selectedArbiter!.photoUrl)
+                          : null,
+                      child: _selectedArbiter!.photoUrl.isEmpty
+                          ? Text(_selectedArbiter!.displayName.isNotEmpty
+                              ? _selectedArbiter!.displayName[0].toUpperCase()
+                              : '?')
+                          : null,
+                    ),
+                    title: Text(_selectedArbiter!.displayName),
+                    subtitle: Text(_selectedArbiter!.email),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () {
+                        setState(() {
+                          _selectedArbiter = null;
+                          _arbiterEmailController.clear();
+                        });
+                      },
+                    ),
+                  ),
+                ),
+              ],
+
               const SizedBox(height: 32),
               AppButton(
-                label: 'Create Challenge & Pay',
-                icon: Icons.lock,
+                label: 'create_challenge_pay'.tr(),
+                icon: Icons.rocket_launch,
                 onPressed: _createChallenge,
                 isLoading: _isLoading,
               ),

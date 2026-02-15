@@ -48,4 +48,24 @@ class StorageService {
 
     await ref.delete();
   }
+
+  Future<String> uploadPaymentProofImage({
+    required String challengeId,
+    required File file,
+  }) async {
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final ref = _storage
+        .ref()
+        .child('payment_proofs')
+        .child(challengeId)
+        .child('$timestamp.jpg');
+
+    final uploadTask = ref.putFile(
+      file,
+      SettableMetadata(contentType: 'image/jpeg'),
+    );
+
+    final snapshot = await uploadTask;
+    return snapshot.ref.getDownloadURL();
+  }
 }
