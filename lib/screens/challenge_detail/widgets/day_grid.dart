@@ -1,6 +1,8 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../config/constants.dart';
 import '../../../models/day_record.dart';
 
 class DayGrid extends StatelessWidget {
@@ -28,7 +30,7 @@ class DayGrid extends StatelessWidget {
       itemCount: records.length,
       itemBuilder: (context, index) {
         final record = records[index];
-        final dayFormat = DateFormat('d');
+        final dayFormat = DateFormat('d', context.locale.toLanguageTag());
         final isToday = _isToday(record.date);
 
         Color bgColor;
@@ -38,8 +40,8 @@ class DayGrid extends StatelessWidget {
             bgColor = Colors.green;
             icon = Icons.check;
           case DayStatus.rejected:
-            bgColor = Colors.orange;
-            icon = Icons.refresh;
+            bgColor = record.canResubmit ? Colors.orange : colorScheme.error;
+            icon = record.canResubmit ? Icons.refresh : Icons.close;
           case DayStatus.missed:
             bgColor = colorScheme.error;
             icon = Icons.close;
@@ -81,6 +83,14 @@ class DayGrid extends StatelessWidget {
                     icon,
                     size: 14,
                     color: Colors.white,
+                  ),
+                if (record.status == DayStatus.rejected && record.proofAttempts > 0)
+                  Text(
+                    '${record.proofAttempts}/${AppConstants.maxProofAttempts}',
+                    style: const TextStyle(
+                      fontSize: 8,
+                      color: Colors.white70,
+                    ),
                   ),
               ],
             ),

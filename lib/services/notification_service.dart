@@ -6,6 +6,9 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
 
+  /// Called when user taps a notification — provides challengeId and type
+  void Function(String challengeId, String type)? onNotificationTap;
+
   Future<void> initialize() async {
     // Request permission
     await _messaging.requestPermission(
@@ -26,10 +29,22 @@ class NotificationService {
       android: androidSettings,
       iOS: iosSettings,
     );
-    await _localNotifications.initialize(settings: settings);
+    await _localNotifications.initialize(
+      settings: settings,
+      onDidReceiveNotificationResponse: _onLocalNotificationTap,
+    );
 
     // Handle foreground messages
     FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+
+    // Handle notification tap when app is in background (not terminated)
+    FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
+
+    // Handle notification tap when app was terminated
+    final initialMessage = await _messaging.getInitialMessage();
+    if (initialMessage != null) {
+      _handleNotificationTap(initialMessage);
+    }
   }
 
   Future<String?> getToken() async {
@@ -41,6 +56,9 @@ class NotificationService {
   void _handleForegroundMessage(RemoteMessage message) {
     final notification = message.notification;
     if (notification == null) return;
+
+    final challengeId = message.data['challengeId'] as String? ?? '';
+    final type = message.data['type'] as String? ?? '';
 
     _localNotifications.show(
       id: notification.hashCode,
@@ -56,7 +74,26 @@ class NotificationService {
         ),
         iOS: DarwinNotificationDetails(),
       ),
+      payload: '$challengeId|$type',
     );
+  }
+
+  void _handleNotificationTap(RemoteMessage message) {
+    final challengeId = message.data['challengeId'] as String?;
+    final type = message.data['type'] as String? ?? '';
+    if (challengeId != null && challengeId.isNotEmpty) {
+      onNotificationTap?.call(challengeId, type);
+    }
+  }
+
+  void _onLocalNotificationTap(NotificationResponse response) {
+    final payload = response.payload;
+    if (payload == null || payload.isEmpty) return;
+    final parts = payload.split('|');
+    if (parts.isEmpty || parts[0].isEmpty) return;
+    final challengeId = parts[0];
+    final type = parts.length > 1 ? parts[1] : '';
+    onNotificationTap?.call(challengeId, type);
   }
 
   Future<void> showLocalNotification({

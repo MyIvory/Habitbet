@@ -10,6 +10,7 @@ class DayRecord {
   final String? rejectionReason;
   final DateTime? submittedAt;
   final DateTime? reviewedAt;
+  final int proofAttempts;
 
   const DayRecord({
     required this.id,
@@ -21,9 +22,11 @@ class DayRecord {
     this.rejectionReason,
     this.submittedAt,
     this.reviewedAt,
+    this.proofAttempts = 0,
   });
 
   bool get needsProof => status == DayStatus.pending;
+  bool get canResubmit => status == DayStatus.rejected && proofAttempts < 3;
   bool get needsReview => status == DayStatus.proofSubmitted;
 
   factory DayRecord.fromJson(Map<String, dynamic> json) {
@@ -44,6 +47,7 @@ class DayRecord {
       reviewedAt: json['reviewedAt'] != null
           ? DateTime.parse(json['reviewedAt'] as String)
           : null,
+      proofAttempts: json['proofAttempts'] as int? ?? 0,
     );
   }
 
@@ -58,6 +62,7 @@ class DayRecord {
       'rejectionReason': rejectionReason,
       'submittedAt': submittedAt?.toIso8601String(),
       'reviewedAt': reviewedAt?.toIso8601String(),
+      'proofAttempts': proofAttempts,
     };
   }
 
@@ -71,6 +76,7 @@ class DayRecord {
     String? rejectionReason,
     DateTime? submittedAt,
     DateTime? reviewedAt,
+    int? proofAttempts,
   }) {
     return DayRecord(
       id: id ?? this.id,
@@ -82,6 +88,7 @@ class DayRecord {
       rejectionReason: rejectionReason ?? this.rejectionReason,
       submittedAt: submittedAt ?? this.submittedAt,
       reviewedAt: reviewedAt ?? this.reviewedAt,
+      proofAttempts: proofAttempts ?? this.proofAttempts,
     );
   }
 }

@@ -13,14 +13,27 @@ service cloud.firestore {
       allow create: if request.auth != null && request.auth.uid == request.resource.data.creatorId;
       allow update: if request.auth != null && (
         request.auth.uid == resource.data.creatorId ||
-        request.auth.uid == resource.data.arbiterId
+        (request.auth.uid == resource.data.arbiterId &&
+         request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(['arbiterStatus', 'paymentProofStatus', 'paymentProofReviewedAt',
+                     'paymentProofRejectionReason', 'arbiterRating', 'arbiterFeedback']))
       );
 
-      // Day records within a challenge
+      // Day records — creator submits proof, arbiter reviews
       match /dayRecords/{recordId} {
         allow read: if request.auth != null;
-        allow create: if request.auth != null;
-        allow update: if request.auth != null;
+        allow create: if request.auth != null
+          && request.auth.uid == get(/databases/$(database)/documents/challenges/$(challengeId)).data.creatorId;
+        allow update: if request.auth != null && (
+          // Creator can submit proof
+          (request.auth.uid == get(/databases/$(database)/documents/challenges/$(challengeId)).data.creatorId &&
+           request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['status', 'proofImageUrl', 'proofNote', 'submittedAt', 'proofAttempts'])) ||
+          // Arbiter can approve/reject
+          (request.auth.uid == get(/databases/$(database)/documents/challenges/$(challengeId)).data.arbiterId &&
+           request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['status', 'rejectionReason', 'reviewedAt']))
+        );
       }
     }
   }

@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -15,25 +16,22 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final _pageController = PageController();
   int _currentPage = 0;
 
-  static const _pages = [
-    _OnboardingPage(
-      icon: Icons.flag,
-      title: 'Set a Challenge',
-      description:
-          'Choose a habit you want to build — exercise, reading, meditation, or anything else. Set the duration and frequency.',
-    ),
-    _OnboardingPage(
-      icon: Icons.attach_money,
-      title: 'Stake Your Money',
-      description:
-          'Put real money on the line. If you fail, your stake goes to charity. Nothing motivates like skin in the game.',
-    ),
-    _OnboardingPage(
-      icon: Icons.people,
-      title: 'Get an Arbiter',
-      description:
-          'Invite a friend to verify your daily proof. They keep you honest and accountable.',
-    ),
+  static const _pageIcons = [
+    Icons.flag,
+    Icons.volunteer_activism,
+    Icons.people,
+  ];
+
+  static const _pageTitleKeys = [
+    'onboarding_title_1',
+    'onboarding_title_2',
+    'onboarding_title_3',
+  ];
+
+  static const _pageDescKeys = [
+    'onboarding_desc_1',
+    'onboarding_desc_2',
+    'onboarding_desc_3',
   ];
 
   @override
@@ -53,25 +51,24 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             Expanded(
               child: PageView.builder(
                 controller: _pageController,
-                itemCount: _pages.length,
+                itemCount: _pageIcons.length,
                 onPageChanged: (index) {
                   setState(() => _currentPage = index);
                 },
                 itemBuilder: (context, index) {
-                  final page = _pages[index];
                   return Padding(
                     padding: const EdgeInsets.all(32),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          page.icon,
+                          _pageIcons[index],
                           size: 100,
                           color: colorScheme.primary,
                         ),
                         const SizedBox(height: 32),
                         Text(
-                          page.title,
+                          _pageTitleKeys[index].tr(),
                           style: Theme.of(context)
                               .textTheme
                               .headlineMedium
@@ -80,7 +77,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          page.description,
+                          _pageDescKeys[index].tr(),
                           style: Theme.of(context).textTheme.bodyLarge,
                           textAlign: TextAlign.center,
                         ),
@@ -94,7 +91,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(
-                _pages.length,
+                _pageIcons.length,
                 (index) => Container(
                   margin: const EdgeInsets.symmetric(horizontal: 4),
                   width: _currentPage == index ? 24 : 8,
@@ -112,11 +109,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 32),
               child: AppButton(
-                label: _currentPage == _pages.length - 1
-                    ? 'Get Started'
-                    : 'Next',
+                label: _currentPage == _pageIcons.length - 1
+                    ? 'get_started'.tr()
+                    : 'next'.tr(),
                 onPressed: () {
-                  if (_currentPage == _pages.length - 1) {
+                  if (_currentPage == _pageIcons.length - 1) {
                     context.go(AppRoutes.login);
                   } else {
                     _pageController.nextPage(
@@ -127,10 +124,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 },
               ),
             ),
-            if (_currentPage < _pages.length - 1)
+            if (_currentPage < _pageIcons.length - 1)
               TextButton(
                 onPressed: () => context.go(AppRoutes.login),
-                child: const Text('Skip'),
+                child: Text('skip'.tr()),
               ),
             const SizedBox(height: 32),
           ],
@@ -138,16 +135,4 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       ),
     );
   }
-}
-
-class _OnboardingPage {
-  final IconData icon;
-  final String title;
-  final String description;
-
-  const _OnboardingPage({
-    required this.icon,
-    required this.title,
-    required this.description,
-  });
 }
